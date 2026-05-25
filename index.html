@@ -667,11 +667,16 @@ async function doLogin(){
   btn.disabled=true;
 
   try {
-    var r = await sb.auth.signInWithPassword({email:email, password:pwd});
-    if(r.error){err.textContent='Invalid email or password.';err.style.display='block';btn.textContent='Sign in';btn.disabled=false;return;}
-    loginSuccess(r.data.user);
+    if(!sb){ err.textContent='Connecting... please wait 3 seconds and try again.'; err.style.display='block'; btn.textContent='Sign in'; btn.disabled=false; return; }
+    var cleanEmail = email.trim().toLowerCase();
+    var r = await sb.auth.signInWithPassword({email: cleanEmail, password: pwd});
+    if(!r.error && r.data && r.data.user){ loginSuccess(r.data.user); return; }
+    // If login fails, show exact error
+    err.textContent = r.error ? r.error.message : 'Login failed';
+    err.style.display='block'; btn.textContent='Sign in'; btn.disabled=false;
   } catch(e) {
-    err.textContent='Connection error. Please refresh and try again.';err.style.display='block';btn.textContent='Sign in';btn.disabled=false;
+    err.textContent='Connection error - please refresh page and try again';
+    err.style.display='block'; btn.textContent='Sign in'; btn.disabled=false;
   }
 }
 

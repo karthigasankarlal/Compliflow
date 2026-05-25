@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>CompliFlow - Reset Password</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+body{font-family:sans-serif;background:#1E3A5F;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}
+.box{background:#fff;padding:40px;border-radius:12px;width:380px;}
+h2{color:#1E3A5F;margin-bottom:20px;}
+input{width:100%;padding:10px;margin-bottom:12px;border:1px solid #ddd;border-radius:6px;font-size:14px;box-sizing:border-box;}
+button{width:100%;padding:10px;background:#1E3A5F;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;}
+#msg{margin-top:12px;font-size:13px;padding:8px;border-radius:6px;}
+.ok{background:#E6F4EE;color:#1A6B45;}
+.err{background:#FDEAEA;color:#A02020;}
+pre{background:#f5f5f5;padding:10px;border-radius:6px;font-size:11px;overflow-x:auto;}
+</style>
+</head>
+<body>
+<div class="box">
+  <h2>CompliFlow — Admin Setup</h2>
+  <p style="font-size:13px;color:#666;margin-bottom:20px">Use this page to create or reset any user password</p>
+  
+  <label style="font-size:12px;font-weight:600;color:#666">Email address</label>
+  <input type="email" id="email" placeholder="karthiga.sankarlal@zeni.ai">
+  
+  <label style="font-size:12px;font-weight:600;color:#666">New password</label>
+  <input type="password" id="pwd" placeholder="Enter new password">
+  
+  <button onclick="resetPwd()">Set password & confirm email</button>
+  <button onclick="listUsers()" style="background:#888;margin-top:8px">List all users</button>
+  
+  <div id="msg" style="display:none"></div>
+  <pre id="out" style="display:none"></pre>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://nflfsbuhdkavhqsegtug.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mbGZzYnVoZGthdmhxc2VndHVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MTAxODIsImV4cCI6MjA5NTA4NjE4Mn0.aYXYdVnUNIwtqNEf_PpdXIbVQCX6qYendhkoLzSoB9o';
+
+let sb;
+window.addEventListener('load', function() {
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+});
+
+async function resetPwd() {
+  const email = document.getElementById('email').value.trim();
+  const pwd = document.getElementById('pwd').value;
+  const msg = document.getElementById('msg');
+  const out = document.getElementById('out');
+  
+  if(!email || !pwd) { showMsg('Please enter email and password', false); return; }
+  
+  // First sign in as admin won't work with anon key
+  // Instead use signUp which will create or update
+  showMsg('Trying to create/update user...', true);
+  
+  // Try signup first
+  const r1 = await sb.auth.signUp({email: email, password: pwd});
+  console.log('Signup result:', r1);
+  
+  if(r1.data && r1.data.user) {
+    showMsg('SUCCESS! User created/updated. Now try logging into CompliFlow with: ' + email + ' / ' + pwd, true);
+    out.style.display='block';
+    out.textContent = JSON.stringify(r1.data.user, null, 2);
+  } else {
+    showMsg('Error: ' + (r1.error ? r1.error.message : 'Unknown error'), false);
+    // Try signing in to verify
+    const r2 = await sb.auth.signInWithPassword({email: email, password: pwd});
+    if(r2.data && r2.data.user) {
+      showMsg('Login works! User: ' + email + ' is ready.', true);
+    } else {
+      showMsg('Both signup and login failed: ' + (r2.error ? r2.error.message : 'Unknown'), false);
+    }
+  }
+}
+
+async function listUsers() {
+  const r = await sb.auth.getUser();
+  const out = document.getElementById('out');
+  out.style.display = 'block';
+  out.textContent = JSON.stringify(r, null, 2);
+}
+
+function showMsg(text, ok) {
+  const msg = document.getElementById('msg');
+  msg.style.display = 'block';
+  msg.className = ok ? 'ok' : 'err';
+  msg.textContent = text;
+}
+</script>
+</body>
+</html>
