@@ -672,7 +672,7 @@ async function doLogin(){
     var r = await sb.auth.signInWithPassword({email: cleanEmail, password: pwd});
     if(!r.error && r.data && r.data.user){ loginSuccess(r.data.user); return; }
     // If login fails, show exact error
-    err.textContent = r.error ? r.error.message : 'Login failed';
+    err.textContent = r.error ? ('Login error: ' + r.error.message) : 'Login failed - please check credentials';
     err.style.display='block'; btn.textContent='Sign in'; btn.disabled=false;
   } catch(e) {
     err.textContent='Connection error - please refresh page and try again';
@@ -691,9 +691,16 @@ function loginSuccess(user){
   inboxMember=name;
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appShell').style.display='flex';
-  setupRealtime();
-  updateInboxBadge();
-  renderDash();
+  // Load data from Supabase then render
+  loadFromSupabase().then(function(){
+    updateInboxBadge();
+    renderDash();
+    try { setupRealtime(); } catch(e) { console.error('Realtime error:', e); }
+  }).catch(function(e){
+    console.error('Load error:', e);
+    updateInboxBadge();
+    renderDash();
+  });
 }
 
 function doLogout(){
@@ -720,11 +727,18 @@ function setupRealtime(){
   }).subscribe();
 }
 
-async function loadFromSupabase(){
-  if(!USE_SUPABASE)return;
-  var [taxR,rdR]=await Promise.all([sb.from('tax_tasks').select('*').order('created_at',{ascending:false}),sb.from('rd_tasks').select('*').order('created_at',{ascending:false})]);
-  if(!taxR.error&&taxR.data)taxTasks=taxR.data.map(mapRow);
-  if(!rdR.error&&rdR.data)rdTasks=rdR.data.map(mapRow);
+async async function loadFromSupabase(){
+  if(!USE_SUPABASE||!sb)return;
+  try {
+    var taxR = await sb.from('tax_tasks').select('*').order('created_at',{ascending:false});
+    var rdR = await sb.from('rd_tasks').select('*').order('created_at',{ascending:false});
+    if(taxR.error) console.error('tax_tasks error:', taxR.error);
+    else if(taxR.data) taxTasks = taxR.data.map(mapRow);
+    if(rdR.error) console.error('rd_tasks error:', rdR.error);
+    else if(rdR.data) rdTasks = rdR.data.map(mapRow);
+  } catch(e) {
+    console.error('loadFromSupabase error:', e);
+  }
 }
 
 function mapRow(r){return{id:r.id,client:r.client,form:r.form,type:r.type,entity:r.entity,year:r.year,stage:r.stage,preparer:r.preparer,reviewer:r.reviewer,dueDate:r.due_date,internal:r.internal_date,priority:r.priority,drive:r.drive_link,notes:r.notes,prepHrs:r.prep_hrs||0,revHrs:r.rev_hrs||0};}
